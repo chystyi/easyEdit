@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Boost Video Editor</title>
+<style>
+  :root{
+    --ink:#111;           /* primary black */
+    --ink2:#444;          /* soft black */
+    --mut:#8a8a8a;        /* muted grey */
+    --line:#e2e2e2;       /* hairline */
+    --bg:#fafafa;         /* app background */
+    --panel:#ffffff;      /* panels */
+    --dark:#161616;       /* timeline / header */
+    --dark2:#232323;
+    --ok:#111;            /* status shades — monochrome */
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);font-size:14px;}
+
+  /* ---------- app frame ---------- */
+  .top{height:52px;background:var(--dark);color:#fff;display:flex;align-items:center;
+       gap:18px;padding:0 18px;flex-shrink:0;}
+  .top .logo{font-weight:800;letter-spacing:.08em;font-size:15px;}
+  .top .logo span{font-weight:400;color:#9a9a9a;margin-left:8px;letter-spacing:0;}
+  .top .gap{flex:1;}
+  .seg{display:flex;border:1px solid #3a3a3a;border-radius:8px;overflow:hidden;}
+  .seg button{background:transparent;color:#bbb;border:0;padding:6px 12px;font-size:12px;
+              font-weight:600;cursor:pointer;}
+  .seg button.active{background:#fff;color:#111;}
+  .seg button:disabled{opacity:.35;cursor:not-allowed;}
+  .top .lab{font-size:11px;color:#9a9a9a;text-transform:uppercase;letter-spacing:.06em;margin-right:-8px;}
+
+  .app{display:grid;grid-template-columns:320px 1fr 300px;gap:0;
+       height:calc(100vh - 52px);overflow:hidden;}
+
+  /* ---------- panels ---------- */
+  .panel{background:var(--panel);overflow-y:auto;}
+  .panel.left{border-right:1px solid var(--line);}
+  .panel.right{border-left:1px solid var(--line);}
+  .panel h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+            color:var(--mut);margin:0;padding:16px 16px 10px;}
+  .sect{padding:0 16px 16px;border-bottom:1px solid var(--line);}
+
+  /* ---------- buttons ---------- */
+  button{font-family:inherit;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+       padding:8px 14px;border:1px solid var(--ink);border-radius:8px;background:var(--ink);
+       color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:background .12s;}
+  .btn:hover{background:#000;}
+  .btn.ghost{background:#fff;color:var(--ink);border-color:#cfcfcf;}
+  .btn.ghost:hover{border-color:var(--ink);}
+  .btn.ghost.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .btn.sm{padding:5px 10px;font-size:12px;border-radius:7px;}
+  .btn.block{width:100%;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn.danger{border-color:#c33;color:#c33;background:#fff;}
+  .btn.danger:hover{background:#c33;color:#fff;}
+
+  /* ---------- left: add + queue ---------- */
+  .drop{border:1.5px dashed #c9c9c9;border-radius:10px;padding:18px 12px;text-align:center;
+        color:var(--mut);cursor:pointer;font-size:13px;background:#fff;}
+  .drop:hover,.drop.over{border-color:var(--ink);color:var(--ink);background:#f4f4f4;}
+  textarea#driveUrls{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;
+        font-size:12px;font-family:inherit;resize:vertical;background:#fff;color:var(--ink);}
+  .check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2);
+         margin:10px 0 0;cursor:pointer;}
+  .muted{color:var(--mut);font-size:12px;}
+
+  .job{border:1px solid var(--line);border-radius:10px;padding:12px;margin:0 16px 10px;background:#fff;}
+  .job .name{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;
+             white-space:nowrap;margin-right:8px;}
+  .job .row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;
+        background:#eee;color:var(--ink2);white-space:nowrap;}
+  .pill.done{background:var(--ink);color:#fff;}
+  .pill.error{background:#fff;color:#c33;border:1px solid #c33;}
+  .pill.running{background:#e6e6e6;color:var(--ink);}
+  .bar{height:6px;background:#ececec;border-radius:4px;overflow:hidden;margin-top:8px;}
+  .bar>i{display:block;height:100%;width:0;background:var(--ink);transition:width .4s;}
+  .job .actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .xbtn{border:0;background:transparent;color:#bbb;font-size:15px;cursor:pointer;padding:0 2px;}
+  .xbtn:hover{color:#c33;}
+
+  /* ---------- center: stage + timeline ---------- */
+  .center{display:flex;flex-direction:column;overflow:hidden;background:#efefef;}
+  .stagewrap{flex:1;display:flex;flex-direction:column;align-items:center;
+             justify-content:center;gap:8px;padding:22px;min-height:0;}
+  /* which video is open — easy to lose track of with a dozen near-identical
+     lesson titles in the queue (two in batch 33 were byte-identical) */
+  #openTitleWrap{align-self:flex-start;max-width:100%;}
+  #openTitle{font-size:15px;font-weight:700;color:var(--ink);line-height:1.25;
+             overflow-wrap:anywhere;}
+  #openSub{font-size:11px;margin-top:2px;}
+  .preview{position:relative;background:#000;border-radius:4px;overflow:hidden;
+           box-shadow:0 8px 30px rgba(0,0,0,.18);max-width:100%;max-height:100%;}
+  .preview video{display:block;max-width:100%;max-height:calc(100vh - 300px);width:auto;height:auto;}
+  .stage{position:absolute;inset:0;}
+  .empty{color:#9a9a9a;text-align:center;font-size:14px;}
+  .empty b{display:block;font-size:16px;color:#6f6f6f;margin-bottom:6px;}
+
+  .transport{display:flex;gap:12px;align-items:center;padding:10px 16px;background:var(--dark);
+             color:#fff;flex-shrink:0;}
+  .clock{font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;}
+  .clock.dim{color:#8a8a8a;font-weight:400;}
+  .transport .gap{flex:1;}
+  .tbtn{background:#2d2d2d;border:0;color:#fff;border-radius:7px;padding:7px 14px;
+        font-size:12px;font-weight:600;cursor:pointer;}
+  .tbtn:hover{background:#3a3a3a;}
+
+  /* timeline */
+  .tl{overflow-x:auto;background:var(--dark);flex-shrink:0;max-height:190px;
+      border-top:1px solid #2c2c2c;}
+  /* touch: dragging on the track scrubs instead of scrolling the page */
+  .track,.ruler,.handle,.grab,.clip,.obox,.grip{touch-action:none;}
+  .tlinner{position:relative;}
+  .ruler{position:relative;height:20px;border-bottom:1px solid #2c2c2c;}
+  .ruler .tick{position:absolute;top:0;height:20px;border-left:1px solid #3a3a3a;
+               font-size:9px;color:#8a8a8a;padding-left:3px;line-height:20px;}
+  .track{position:relative;height:52px;background:#1d1d1d;border-bottom:1px solid #2c2c2c;}
+  .track .fill{position:absolute;top:7px;bottom:7px;left:0;right:0;background:#3c3c3c;border-radius:4px;}
+  .trim-dim{position:absolute;top:0;bottom:0;background:rgba(0,0,0,.55);z-index:3;pointer-events:none;}
+  .handle{position:absolute;top:0;bottom:0;width:9px;background:#fff;z-index:5;cursor:ew-resize;border-radius:2px;}
+  .cutreg{position:absolute;top:0;bottom:0;z-index:4;
+          background:repeating-linear-gradient(45deg,rgba(255,255,255,.34),rgba(255,255,255,.34) 5px,rgba(255,255,255,.16) 5px,rgba(255,255,255,.16) 10px);
+          border-left:2px solid #fff;border-right:2px solid #fff;}
+  .cutreg b{position:absolute;top:2px;right:2px;background:#fff;color:#111;border-radius:50%;
+            width:15px;height:15px;font-size:11px;line-height:15px;text-align:center;cursor:pointer;}
+  .repreg{position:absolute;top:0;bottom:0;background:rgba(255,255,255,.14);
+          border-left:1.5px dashed #bbb;border-right:1.5px dashed #bbb;z-index:4;cursor:pointer;}
+  .repreg.ok{background:repeating-linear-gradient(45deg,rgba(255,255,255,.4),rgba(255,255,255,.4) 5px,rgba(255,255,255,.2) 5px,rgba(255,255,255,.2) 10px);border-color:#fff;}
+  .insmark{position:absolute;top:0;bottom:0;width:3px;background:#5ac8c8;z-index:6;cursor:pointer;}
+  .insmark::before{content:attr(data-lab);position:absolute;top:-1px;left:5px;font-size:9px;
+                   color:#5ac8c8;font-weight:700;white-space:nowrap;letter-spacing:.04em;}
+  .cutpending{position:absolute;top:0;bottom:0;width:2px;background:#fff;z-index:6;}
+  .cutpending::before{content:"cut start";position:absolute;top:-1px;left:4px;font-size:9px;
+                      color:#fff;font-weight:700;white-space:nowrap;letter-spacing:.04em;}
+  .playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;z-index:7;pointer-events:none;}
+  .playhead .grab{position:absolute;top:-5px;left:-7px;width:16px;height:16px;background:#fff;
+                  border-radius:3px;cursor:ew-resize;pointer-events:auto;}
+  .lane{position:relative;height:36px;background:#1a1a1a;}
+  .clip{position:absolute;top:5px;height:26px;background:#e8e8e8;color:#111;border-radius:4px;
+        font-size:11px;font-weight:600;padding:5px 8px;white-space:nowrap;overflow:hidden;
+        cursor:move;z-index:2;display:flex;align-items:center;}
+  .clip.img{background:#b9b9b9;}
+  .clip.sel{outline:2px solid #fff;}
+  .clip .e{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;}
+  .clip .e.l{left:0;} .clip .e.r{right:0;}
+
+  /* overlay boxes on the video */
+  .obox{position:absolute;border:1px dashed transparent;cursor:move;user-select:none;}
+  .obox.sel{border-color:#fff;box-shadow:0 0 0 1px #111;}
+  .obox .lbl{white-space:pre;line-height:1.1;text-shadow:0 0 3px rgba(0,0,0,.6);font-weight:700;}
+  .obox img{display:block;width:100%;height:100%;pointer-events:none;}
+  .obox .grip{position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;background:#fff;
+              border:2px solid #111;border-radius:50%;cursor:nwse-resize;}
+
+  /* ---------- right: tools ---------- */
+  .tools{display:flex;flex-direction:column;gap:6px;}
+  .insp .f{display:flex;flex-direction:column;margin-bottom:10px;}
+  .insp label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+              color:var(--mut);margin-bottom:4px;}
+  .insp input[type=text],.insp input[type=number]{padding:7px 9px;border:1px solid var(--line);
+              border-radius:7px;font-size:13px;background:#fff;color:var(--ink);}
+  .insp input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--line);border-radius:7px;background:#fff;}
+
+  .repitem{display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line);font-size:12px;}
+  .repitem:first-of-type{border-top:none;}
+  .repitem .meta{flex:1;min-width:0;}
+  .repitem .tag{font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;}
+  .repitem .cuttxt{color:#c33;margin-top:2px;}
+  .repitem .keeptxt{color:#2a7a2a;margin-top:2px;}
+
+  a.dl{display:inline-flex;align-items:center;padding:8px 14px;background:var(--ink);color:#fff;
+       text-decoration:none;border-radius:8px;font-weight:600;font-size:13px;}
+  .help{font-size:11px;color:var(--mut);line-height:1.5;}
+  hr.thin{border:0;border-top:1px solid var(--line);margin:12px 0;}
+
+  /* ---------- mobile: stack the three columns ---------- */
+  @media (max-width: 900px){
+    html,body{height:auto;}
+    .top{height:auto;flex-wrap:wrap;padding:10px 12px;gap:10px;}
+    .app{display:flex;flex-direction:column;height:auto;overflow:visible;}
+    .panel{overflow:visible;}
+    .panel.left{order:2;border-right:0;border-top:1px solid var(--line);}
+    .center{order:1;min-height:0;}
+    .panel.right{order:3;border-left:0;border-top:1px solid var(--line);}
+    .stagewrap{padding:10px;}
+    .preview video{max-height:56vw;}
+    .btn,.tbtn{padding:12px 16px;font-size:15px;}   /* finger-sized */
+    .btn.sm{padding:9px 12px;font-size:13px;}
+    .job .actions .btn{flex:1;justify-content:center;}
+    .tl{max-height:150px;}
+    .transport{flex-wrap:wrap;gap:8px;}
+    .empty{padding:40px 16px;}
+    .seg button{padding:9px 14px;}
+    input,textarea,select{font-size:16px !important;} /* no iOS zoom-on-focus */
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="logo">BOOST<span>Video Editor</span></div>
+  <div class="gap"></div>
+  <span class="lab">Encoder</span>
+  <div class="seg"><button id="encCpu">CPU</button><button id="encGpu">GPU</button></div>
+  <span class="lab">Voice cleanup</span>
+  <div class="seg"><button id="cvOn">On</button><button id="cvOff">Off</button></div>
+</header>
+
+<div class="app">
+
+  <!-- ============ LEFT: TASKS ============ -->
+  <aside class="panel left">
+    <h3>Add videos</h3>
+    <div class="sect">
+      <form id="form">
+        <label class="drop" id="drop" for="file"><b>Choose files</b> or drop raw .mp4 here<div id="fname" class="muted"></div></label>
+        <input type="file" id="file" accept="video/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;" />
+        <div style="margin-top:10px">
+          <textarea id="driveUrls" rows="2" placeholder="Google Drive link — file or folder, one per line"></textarea>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button type="button" id="driveGo" class="btn ghost sm">Add from Drive</button>
+            <button type="button" id="driveRelink" class="btn ghost sm" title="Paste the folder link to restore the Drive upload target on rendered videos">Re-link folder</button>
+          </div>
+          <div class="muted" id="driveNote" style="margin-top:6px">Shared as “Anyone with the link can view”.</div>
+        </div>
+        <label class="check"><input type="checkbox" id="detectRepeats"> Detect repeated lines during render</label>
+        <button type="submit" id="go" class="btn block" style="margin-top:12px" disabled>Add to render queue</button>
+      </form>
+    </div>
+    <h3>Tasks</h3>
+    <div id="jobsList"></div>
+  </aside>
+
+  <!-- ============ CENTER: STAGE + TIMELINE ============ -->
+  <main class="center">
+    <div class="stagewrap">
+      <div class="empty" id="emptyState"><b>No video open</b>Render a task on the left, then press Edit.</div>
+      <div id="openTitleWrap" hidden>
+        <div id="openTitle" title=""></div>
+        <div id="openSub" class="muted"></div>
+      </div>
+      <div class="preview" id="preview" hidden>
+        <video id="vid" playsinline></video>
+        <div class="stage" id="stage"></div>
+      </div>
+    </div>
+
+    <div class="transport" id="transport" hidden>
+      <button class="tbtn" id="playBtn">Play</button>
+      <button class="tbtn" id="back15" title="Back 15 seconds">−15s</button>
+      <button class="tbtn" id="fwd15" title="Forward 15 seconds">+15s</button>
+      <span class="clock" id="clock">0:00.0</span><span class="clock dim">/</span><span class="clock dim" id="dur">0:00.0</span>
+      <span class="gap"></span>
+      <button class="tbtn" id="zoomOut">Zoom −</button>
+      <button class="tbtn" id="zoomIn">Zoom +</button>
+    </div>
+
+    <div class="tl" id="tl" hidden>
+      <div class="tlinner" id="tlinner">
+        <div class="ruler" id="ruler"></div>
+        <div class="track" id="vtrack">
+          <div class="fill"></div>
+          <div class="trim-dim" id="dimL"></div>
+          <div class="trim-dim" id="dimR"></div>
+          <div id="cuts"></div>
+          <div id="repcuts"></div>
+          <div class="cutpending" id="cutPending" hidden></div>
+          <div class="handle" id="trimL"></div>
+          <div class="handle" id="trimR"></div>
+          <div class="playhead" id="ph"><div class="grab" id="phGrab"></div></div>
+        </div>
+        <div class="lane" id="lane"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ RIGHT: TOOLS ============ -->
+  <aside class="panel right" id="toolsPanel" style="visibility:hidden">
+    <h3>Tools</h3>
+    <div class="sect tools">
+      <button class="btn ghost" id="toolSelect">Select</button>
+      <button class="btn ghost" id="markCut">Mark cut start</button>
+      <button class="btn ghost" id="toolCut">Drag cut</button>
+      <button class="btn ghost" id="findRepeats">Find repeated lines</button>
+      <button class="btn ghost" id="insertClip" title="Drop another finished video into this one at the playhead">Insert clip here</button>
+      <div id="insertList" class="muted" style="margin:6px 0 0"></div>
+      <hr class="thin">
+      <button class="btn ghost" id="addText">Add text</button>
+      <button class="btn ghost" id="addImage">Add image</button>
+      <input type="file" id="imgFile" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;">
+      <p class="help" style="margin:8px 0 0">Move the playhead, press <b>Mark cut start</b>, move again, press it again — the span is removed and skipped live on playback. Esc cancels. Drag the white handles to trim the ends. Drag overlays on the video; drag their clips to re-time.</p>
+    </div>
+
+    <h3 id="inspTitle" hidden>Selected</h3>
+    <div class="sect insp" id="insp" hidden></div>
+
+    <h3 id="repTitle" hidden>Repeated lines</h3>
+    <div class="sect" id="repeatsPanel" hidden></div>
+
+    <div class="sect" style="border-bottom:0;padding-top:16px">
+      <button class="btn block" id="apply">Apply &amp; render</button>
+      <div id="editPanel" style="margin-top:12px" hidden>
+        <span class="pill" id="epill">queued</span><span id="emsg" class="muted"></span>
+        <div class="bar"><i id="efill"></i></div>
+      </div>
+      <div id="editResult" style="margin-top:12px"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const fmt=t=>{t=Math.max(0,t);const m=Math.floor(t/60),s=(t%60);return m+":"+(s<10?"0":"")+s.toFixed(1);};
+
+/* ============ ENCODER TOGGLE ============ */
+async function loadEncoder(){
+  const j=await(await fetch("/api/encoder")).json();
+  $("#encGpu").disabled=!j.gpu_available;
+  paintEnc(j.encoder);
+}
+function paintEnc(mode){ $("#encCpu").classList.toggle("active",mode==="cpu"); $("#encGpu").classList.toggle("active",mode==="gpu"); }
+async function setEnc(mode){ const r=await fetch("/api/encoder",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({encoder:mode})}); if(r.ok){paintEnc((await r.json()).encoder);} }
+$("#encCpu").onclick=()=>setEnc("cpu"); $("#encGpu").onclick=()=>setEnc("gpu"); loadEncoder();
+
+/* ============ CLEANVOICE TOGGLE ============ */
+function paintCv(on){ $("#cvOn").classList.toggle("active",on); $("#cvOff").classList.toggle("active",!on); }
+async function loadCv(){ const j=await(await fetch("/api/cleanvoice")).json(); paintCv(j.enabled); }
+async function setCv(on){ const r=await fetch("/api/cleanvoice",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:on})}); if(r.ok){paintCv((await r.json()).enabled);} }
+$("#cvOn").onclick=()=>setCv(true); $("#cvOff").onclick=()=>setCv(false); loadCv();
+
+/* ============ RENDER QUEUE ============ */
+const fileInput=$("#file"),drop=$("#drop"),go=$("#go");
+let chosenFiles=[];
+function pick(files){
+  chosenFiles=Array.from(files||[]);
+  $("#fname").textContent=chosenFiles.length?chosenFiles.map(f=>f.name).join(", "):"";
+  go.disabled=!chosenFiles.length;
+}
+fileInput.onchange=e=>pick(e.target.files);
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>{if(e.dataTransfer.files.length)pick(e.dataTransfer.files);});
+
+$("#form").onsubmit=async e=>{
+  e.preventDefault(); go.disabled=true;
+  const wantRepeats=$("#detectRepeats").checked;
+  for(const f of chosenFiles){
+    const fd=new FormData(); fd.append("file",f);
+    if(wantRepeats) fd.append("detect_repeats","1");
+    try{
+      const {id}=await (await fetch("/api/jobs",{method:"POST",body:fd})).json();
+      addJobRow(id, f.name);
+    }catch(err){}
+  }
+  chosenFiles=[]; $("#fname").textContent=""; fileInput.value="";
+};
+
+/* ---- add jobs from Google Drive links (file or folder) ---- */
+$("#driveGo").onclick=async()=>{
+  const urls=$("#driveUrls").value.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+  if(!urls.length){ $("#driveNote").textContent="Paste at least one Drive link."; return; }
+  const wantRepeats=$("#detectRepeats").checked;
+  const btn=$("#driveGo"); btn.disabled=true; btn.textContent="Fetching…";
+  let folder=false;
+  for(const url of urls){
+    try{
+      const r=await (await fetch("/api/jobs/url",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({url, detect_repeats:wantRepeats})})).json();
+      if(r.folder){ folder=true; }
+      else if(r.id){ addJobRow(r.id, "Downloading…"); }
+    }catch(e){}
+  }
+  $("#driveUrls").value="";
+  $("#driveNote").textContent=folder?"Folder queued — videos appear as they download.":"Downloading — tasks will appear below.";
+  btn.disabled=false; btn.textContent="Add from Drive";
+  setTimeout(refreshJobList,1500);
+};
+/* ---- re-link already-rendered jobs to their Drive folder ---- */
+$("#driveRelink").onclick=async()=>{
+  const url=($("#driveUrls").value.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean)[0])||"";
+  if(!url){ $("#driveNote").textContent="Paste the folder link first, then press Re-link."; return; }
+  const btn=$("#driveRelink"); btn.disabled=true; btn.textContent="Re-linking…";
+  try{
+    const r=await(await fetch("/api/jobs/relink",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url})})).json();
+    if(r.linked!=null){
+      $("#driveNote").textContent=`Re-linked ${r.linked} of ${r.videos_in_folder} folder video(s). Reloading…`;
+      setTimeout(()=>location.reload(), 1200);
+    } else {
+      $("#driveNote").textContent=r.detail||"Re-link failed (check the link / DRIVE_API_KEY).";
+    }
+  }catch(e){ $("#driveNote").textContent="Re-link failed."; }
+  btn.disabled=false; btn.textContent="Re-link folder";
+};
+
+async function refreshJobList(){
+  let jobs;
+  try{ jobs=await(await fetch("/api/jobs")).json(); }catch(e){ return; }
+  if(!Array.isArray(jobs)) return;
+  const seen=new Set();
+  jobs.forEach(j=>{
+    seen.add(j.id);
+    const row=document.querySelector(`[data-job="${j.id}"]`);
+    if(!row){ addJobRow(j.id,j.title); return; }
+    renderRow(j.id,row,j);            // keep FINISHED rows live too — see below
+  });
+  // a job deleted from another tab disappears here as well
+  document.querySelectorAll("[data-job]").forEach(row=>{
+    if(!seen.has(row.dataset.job) && !row.dataset.fresh) row.remove();
+  });
+}
+
+function addJobRow(id,name){
+  if(document.querySelector(`[data-job="${id}"]`)) return;
+  const row=document.createElement("div");
+  row.className="job"; row.dataset.job=id;
+  row.dataset.fresh="1";              // survives the first refresh sweep
+  setTimeout(()=>{ delete row.dataset.fresh; }, 6000);
+  row.innerHTML=
+    `<div class="row">
+       <span class="name" data-name></span>
+       <span style="display:flex;gap:6px;align-items:center">
+         <span class="pill" data-pill>queued</span>
+         <button class="xbtn" data-remove title="Remove task">×</button></span></div>
+     <div class="bar"><i data-fill></i></div>
+     <div data-msg class="muted" style="margin-top:5px"></div>
+     <div class="actions" data-actions></div>`;
+  row.querySelector("[data-name]").textContent=name;
+  row.querySelector("[data-remove]").onclick=async()=>{
+    try{ await fetch(`/api/jobs/${id}`,{method:"DELETE"}); }catch(e){}
+    row.remove();
+  };
+  $("#jobsList").prepend(row);
+  pollRow(id,row);
+}
+
+(async()=>{
+  try{
+    const jobs=await (await fetch("/api/jobs")).json();
+    jobs.forEach(j=>addJobRow(j.id, j.title));
+  }catch(e){}
+})();
+setInterval(refreshJobList, 3000);
+
+/* Paint one row from a job record. Split out of pollRow so the 3s list sweep
+   can refresh rows that have ALREADY finished: pollRow stops the moment a job
+   is done, so a finished row used to freeze until the page was reloaded — send
+   it to the editor and it kept offering "Upload to Drive" with no hint it had
+   been superseded. Only repaints when something actually changed, so a click
+   is never stolen mid-press. */
+function renderRow(id,row,j){
+  const sig=[j.status,j.progress,j.title,j.message,j.superseded,j.uploaded,
+             j.drive,j.download,j.queue_position].join("|");
+  if(row.dataset.sig===sig) return;
+  row.dataset.sig=sig;
+  if(j.title){ row.querySelector("[data-name]").textContent=j.title; }
+  const pill=row.querySelector("[data-pill]"); pill.className="pill "+j.status;
+  pill.textContent = j.status==="queued"
+      ? (j.queue_position>0?`queue · ${j.queue_position} ahead`:"next up")
+      : (j.status==="running"?"rendering":j.status);
+  row.querySelector("[data-msg]").textContent = j.status==="running"?j.message:"";
+  row.querySelector("[data-fill]").style.width=(j.progress*100)+"%";
+  if(j.status==="done"){
+    if(j.download){
+      let html=`<a class="dl" href="${j.download}">Download</a>
+         <button class="btn ghost sm" data-edit>Edit</button>
+         <button class="btn ghost sm" data-rerender title="Re-render visuals reusing the cleaned audio — no Cleanvoice credits">Re-render</button>
+         <button class="btn ghost sm" data-merge title="Join this video with another finished one into a single file (part 1 + part 2)">Merge</button>`;
+      if(j.superseded){
+        html += `<span class="pill" style="background:#fff;color:#a97308;border:1px solid #a97308" title="${j.note||''}">superseded</span>`;
+      } else if(j.drive){
+        html += j.uploaded
+          ? `<span data-uploaded class="pill done" title="Uploaded to the Drive final folder">Uploaded</span>
+             <button class="btn ghost sm" data-upload>Re-upload</button>`
+          : `<button class="btn ghost sm" data-upload>Upload to Drive</button>`;
+      }
+      row.querySelector("[data-actions]").innerHTML=html;
+      row.querySelector("[data-edit]").onclick=()=>openEditor(id);
+      row.querySelector("[data-rerender]").onclick=e=>rerenderVisuals(id,e.target,row);
+      row.querySelector("[data-merge]").onclick=()=>openMerge(id, j.title);
+      if(j.superseded){ row.querySelector("[data-msg]").textContent=j.note||"Superseded by a re-render/edit."; }
+      const upBtn=row.querySelector("[data-upload]");
+      if(upBtn){ upBtn.onclick=e=>uploadToDrive(id,e.target,row); }
+    } else {
+      row.querySelector("[data-msg]").textContent=j.message||"Done.";
+    }
+    return;
+  }
+  if(j.status==="error"){ row.querySelector("[data-msg]").textContent=j.error||"error"; }
+}
+
+async function pollRow(id,row){
+  let r,j;
+  try{ r=await fetch(`/api/jobs/${id}`); }
+  catch(e){ setTimeout(()=>pollRow(id,row),2000); return; }
+  if(r.status===404){
+    const pill=row.querySelector("[data-pill]"); pill.className="pill error"; pill.textContent="expired";
+    row.querySelector("[data-msg]").textContent="Task no longer available (server restarted).";
+    return;
+  }
+  j=await r.json();
+  renderRow(id,row,j);
+  if(j.status==="done"||j.status==="error") return;   // the 3s sweep takes over
+  setTimeout(()=>pollRow(id,row),1400);
+}
+
+/* ---- splice another finished video into this one at the playhead ----
+   Batch 33 shipped a lesson with a separate "replacement clip" the client
+   wants dropped in around 1:00. The clip is rendered by the pipeline like any
+   lesson, so by the time it is inserted both sides already match; the server
+   resolves the chosen job id to its file (the browser never names a path). */
+async function openInsert(){
+  if(!S||!sourceJob){ alert("Open a video first."); return; }
+  const at=vid.currentTime;
+  let jobs=[]; try{ jobs=await(await fetch("/api/jobs")).json(); }catch(e){}
+  const done=jobs.filter(j=>j.status==="done"&&j.download&&j.id!==sourceJob);
+  if(!done.length){ alert("No other finished video to insert."); return; }
+  const opts=done.map(j=>`<option value="${j.id}">${j.title}</option>`).join("");
+  const dlg=document.createElement("div");
+  dlg.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:center;justify-content:center";
+  dlg.innerHTML=`
+    <div style="background:#fff;border-radius:12px;padding:18px 20px;width:min(520px,92vw);box-shadow:0 12px 40px rgba(0,0,0,.25)">
+      <h3 style="padding:0 0 10px">Insert a clip at ${fmt(at)}</h3>
+      <div class="muted" style="margin-bottom:12px">The clip is spliced in whole at the playhead. Everything after it shifts later. Cuts you have marked are applied first, so a clip dropped inside a cut lands on the nearest surviving frame.</div>
+      <label class="muted">Clip to insert</label>
+      <select data-clip style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;margin:4px 0 14px;font-size:13px;background:#fff">${opts}</select>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn ghost" data-cancel>Cancel</button>
+        <button class="btn" data-go>Insert</button>
+      </div>
+    </div>`;
+  document.body.appendChild(dlg);
+  const close=()=>dlg.remove();
+  dlg.querySelector("[data-cancel]").onclick=close;
+  dlg.onclick=e=>{ if(e.target===dlg) close(); };
+  dlg.querySelector("[data-go]").onclick=()=>{
+    const sel=dlg.querySelector("[data-clip]");
+    S.inserts=S.inserts||[];
+    S.inserts.push({job:sel.value, at:+at.toFixed(2),
+                    title:sel.options[sel.selectedIndex].textContent});
+    close(); renderInserts(); renderAll();
+  };
+}
+
+function renderInserts(){
+  const box=$("#insertList"); if(!box) return;
+  const list=(S&&S.inserts)||[];
+  if(!list.length){ box.innerHTML=""; return; }
+  box.innerHTML=list.map((o,i)=>
+    `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+       <span class="pill">${fmt(o.at)}</span>
+       <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.title}</span>
+       <button class="xbtn" data-rmins="${i}" title="Remove">×</button></div>`).join("");
+  box.querySelectorAll("[data-rmins]").forEach(b=>b.onclick=()=>{
+    S.inserts.splice(+b.dataset.rmins,1); renderInserts(); renderAll(); });
+}
+
+/* ---- merge two (or more) finished renders into one file ----
+   Lessons recorded in two takes land in one Drive folder as part 1 / part 2;
+   the client wants them delivered as a single video. Order matters, so the
+   dialog shows the parts as an ordered list the user can shuffle. */
+async function openMerge(firstId, firstTitle){
+  let jobs=[]; try{ jobs=await(await fetch("/api/jobs")).json(); }catch(e){}
+  const done=jobs.filter(j=>j.status==="done" && j.download && !j.superseded);
+  const others=done.filter(j=>j.id!==firstId);
+  if(!others.length){ alert("No other finished video to merge with yet."); return; }
+  // best guess for the partner: same title, or the closest name
+  const norm=t=>(t||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const guess=others.find(j=>norm(j.title)===norm(firstTitle)) || others[0];
+  const opts=others.map(j=>`<option value="${j.id}" ${j.id===guess.id?"selected":""}>${j.title}</option>`).join("");
+  const dlg=document.createElement("div");
+  dlg.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:center;justify-content:center";
+  dlg.innerHTML=`
+    <div style="background:#fff;border-radius:12px;padding:18px 20px;width:min(520px,92vw);box-shadow:0 12px 40px rgba(0,0,0,.25)">
+      <h3 style="padding:0 0 10px">Merge into one video</h3>
+      <div class="muted" style="margin-bottom:12px">Parts are joined in this order. The originals stay in the list marked <b>superseded</b>; upload the merged one.</div>
+      <label class="muted">Part 1</label>
+      <div style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px;font-size:13px">${firstTitle}</div>
+      <label class="muted">Part 2</label>
+      <select data-second style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px;font-size:13px;background:#fff">${opts}</select>
+      <label class="check" style="margin:0 0 10px"><input type="checkbox" data-swap> Part 2 goes first</label>
+      <label class="muted">Title of the merged video</label>
+      <input data-title style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;margin:4px 0 14px;font-size:13px" value="${firstTitle.replace(/\s*\((part|re-render|edited|merged)[^)]*\)\s*$/i,"")}">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn ghost" data-cancel>Cancel</button>
+        <button class="btn" data-go>Merge</button>
+      </div>
+    </div>`;
+  document.body.appendChild(dlg);
+  dlg.querySelector("[data-cancel]").onclick=()=>dlg.remove();
+  dlg.onclick=e=>{ if(e.target===dlg) dlg.remove(); };
+  dlg.querySelector("[data-go]").onclick=async e=>{
+    const second=dlg.querySelector("[data-second]").value;
+    const ids=dlg.querySelector("[data-swap]").checked?[second,firstId]:[firstId,second];
+    const title=dlg.querySelector("[data-title]").value.trim();
+    e.target.disabled=true; e.target.textContent="Merging…";
+    try{
+      const r=await(await fetch("/api/jobs/merge",{method:"POST",headers:{"Content-Type":"application/json"},
+                 body:JSON.stringify({ids,title})})).json();
+      if(r.id){ addJobRow(r.id, r.title); dlg.remove(); }
+      else{ alert(r.detail||"Merge failed to start"); e.target.disabled=false; e.target.textContent="Merge"; }
+    }catch(err){ alert("Merge failed to start"); e.target.disabled=false; e.target.textContent="Merge"; }
+  };
+}
+
+async function rerenderVisuals(id, btn, row){
+  btn.disabled=true; btn.textContent="Starting…";
+  try{
+    const r=await(await fetch(`/api/jobs/${id}/rerender`,{method:"POST"})).json();
+    if(r.id){
+      const note=r.reused_cleaned?"reusing cleaned audio (no Cleanvoice)":"no cache — Cleanvoice will run once";
+      if(row) row.querySelector("[data-msg]").textContent="Re-render queued · "+note;
+      addJobRow(r.id, "(re-render)");
+    }
+  }catch(e){ if(row) row.querySelector("[data-msg]").textContent="Re-render failed to start"; }
+  btn.disabled=false; btn.textContent="Re-render";
+}
+
+async function uploadToDrive(id, btn, row){
+  const msg=row&&row.querySelector&&row.querySelector("[data-msg]")?row.querySelector("[data-msg]").textContent:"";
+  const rowText=(row&&row.textContent)||"";
+  if(/⚠ QA/.test(rowText) && !confirm("QA flagged issues on this video. Upload to Drive anyway?")) return;
+  btn.disabled=true; btn.textContent="Uploading…";
+  let ok=false;
+  try{ await fetch(`/api/jobs/${id}/upload`,{method:"POST"}); }catch(e){}
+  for(let i=0;i<200;i++){
+    await new Promise(r=>setTimeout(r,1500));
+    let j; try{ j=await(await fetch(`/api/jobs/${id}`)).json(); }catch(e){ continue; }
+    if(row) row.querySelector("[data-msg]").textContent=j.message||"";
+    if(j.uploaded){ ok=true; break; }
+    if(/failed|no .final|upload off/i.test(j.message||"")) break;
+  }
+  btn.disabled=false;
+  if(ok){
+    btn.textContent="Re-upload";
+    if(row && !row.querySelector("[data-uploaded]")){
+      const b=document.createElement("span");
+      b.dataset.uploaded=""; b.className="pill done";
+      b.textContent="Uploaded";
+      btn.parentNode.insertBefore(b, btn);
+    }
+  } else { btn.textContent="Upload to Drive"; }
+}
+
+/* edit-job poller (used by Apply & render) */
+async function pollJob(id,p,onDone){
+  let r;
+  try{ r=await fetch(`/api/jobs/${id}`); }
+  catch(e){ setTimeout(()=>pollJob(id,p,onDone),2000); return; }
+  if(r.status===404){
+    // The job is gone (server restarted while it ran). Never poll a dead id
+    // forever — that left "Apply & render" disabled with no way back and the
+    // editor's selections stranded.
+    const pill=$("#"+p+"pill"); pill.className="pill error"; pill.textContent="lost";
+    $("#"+p+"msg").textContent=" job lost (server restarted) — press Apply again";
+    $("#apply").disabled=false;
+    return;
+  }
+  const j=await r.json();
+  const pill=$("#"+p+"pill");pill.className="pill "+j.status;
+  let label=j.status;
+  if(j.status==="queued")label=j.queue_position>0?`queue · ${j.queue_position} ahead`:"next up";
+  pill.textContent=label;
+  $("#"+p+"msg").textContent=" "+(j.status==="running"?j.message:"");
+  $("#"+p+"fill").style.width=(j.progress*100)+"%";
+  if(j.status==="done"){onDone(j);return;}
+  if(j.status==="error"){$("#"+p+"msg").textContent=" "+(j.error||"error");$("#apply").disabled=false;return;}
+  setTimeout(()=>pollJob(id,p,onDone),1400);
+}
+
+/* ============ VISUAL EDITOR ============ */
+const vid=$("#vid"),stage=$("#stage"),tlinner=$("#tlinner");
+let S=null;
+let sourceJob=null, tool="select", pps=10, selId=null, uid=0;
+
+async function showOpenTitle(jobId){
+  const w=$("#openTitleWrap"), t=$("#openTitle"), sub=$("#openSub");
+  t.textContent="…"; sub.textContent=""; w.hidden=false;
+  try{
+    const j=await(await fetch(`/api/jobs/${jobId}`)).json();
+    t.textContent=j.title||"(untitled)"; t.title=j.title||"";
+    const bits=[];
+    if(j.superseded) bits.push("superseded — "+(j.note||"replaced"));
+    if(j.uploaded) bits.push("uploaded to Drive");
+    sub.textContent=bits.join(" · ");
+  }catch(e){ t.textContent="(title unavailable)"; }
+}
+
+function openEditor(jobId){
+  sourceJob=jobId;
+  showOpenTitle(jobId);
+  $("#emptyState").hidden=true;
+  $("#preview").hidden=false;
+  $("#transport").hidden=false;
+  $("#tl").hidden=false;
+  $("#toolsPanel").style.visibility="visible";
+  vid.src=`/api/jobs/${jobId}/stream?_=`+Date.now();
+  $("#editResult").innerHTML="";
+  vid.onloadedmetadata=()=>{
+    S={duration:vid.duration,trim:{start:0,end:vid.duration},cuts:[],overlays:[],repeats:[],inserts:[]};
+    renderInserts();
+    $("#repeatsPanel").hidden=true; $("#repeatsPanel").innerHTML=""; $("#repTitle").hidden=true;
+    cutStart=null; if(window.updateMarkBtn)updateMarkBtn();
+    selId=null; pps=Math.max(4,Math.min(40,900/vid.duration));
+    $("#dur").textContent=fmt(vid.duration);
+    layout(); renderAll();
+    loadPrecomputedRepeats(jobId);
+  };
+}
+async function loadPrecomputedRepeats(jobId){
+  try{
+    const j=await(await fetch(`/api/repeats/${jobId}`)).json();
+    if(j&&j.candidates&&j.candidates.length){
+      S.repeats=j.candidates.map(c=>({...c,approved:false}));
+      renderRepeats();
+    }
+  }catch(e){}
+}
+const vscale=()=>1920/stage.clientWidth;
+
+/* ---- playback ---- */
+$("#playBtn").onclick=()=>{vid.paused?vid.play():vid.pause();};
+function seekBy(dt){
+  if(!S)return;
+  const t=Math.max(0,Math.min((S.duration||vid.duration||0)-0.05,vid.currentTime+dt));
+  try{vid.currentTime=t;}catch(e){}
+  movePlayhead(); $("#clock").textContent=fmt(t); renderStage();
+}
+$("#fwd15").onclick=()=>seekBy(15);
+$("#back15").onclick=()=>seekBy(-15);
+vid.addEventListener("play",()=>$("#playBtn").textContent="Pause");
+vid.addEventListener("pause",()=>$("#playBtn").textContent="Play");
+vid.addEventListener("timeupdate",()=>{ if(scrubbing)return; if(skipCut())return; $("#clock").textContent=fmt(vid.currentTime);movePlayhead();renderStage();});
+
+/* ---- live cut preview ---- */
+function activeCut(t){ return (S&&S.cuts?S.cuts:[]).find(c=> t>=c.start && t<c.end-0.03); }
+function skipCut(){ const c=activeCut(vid.currentTime); if(c){ try{vid.currentTime=Math.min((S.duration||vid.duration),c.end+0.02);}catch(e){} return true;} return false; }
+let _raf=null;
+function playLoop(){ if(vid.paused){_raf=null;return;} if(!skipCut()){ movePlayhead(); $("#clock").textContent=fmt(vid.currentTime); } _raf=requestAnimationFrame(playLoop); }
+vid.addEventListener("play",()=>{ if(!_raf)playLoop(); });
+
+/* ---- mark in / out cut ---- */
+let cutStart=null;
+function updateMarkBtn(){ const b=$("#markCut"); if(cutStart==null){ b.textContent="Mark cut start"; b.classList.remove("active"); $("#cutPending").hidden=true; } else { b.textContent="Mark cut end ("+fmt(cutStart)+")"; b.classList.add("active"); const p=$("#cutPending"); p.hidden=false; p.style.left=t2x(cutStart)+"px"; } }
+$("#markCut").onclick=()=>{
+  const t=vid.currentTime;
+  if(cutStart==null){ cutStart=t; }
+  else { const a=Math.min(cutStart,t), b=Math.max(cutStart,t); cutStart=null; if(b-a>0.1){ S.cuts.push({start:+a.toFixed(2),end:+b.toFixed(2)}); renderCuts(); } }
+  updateMarkBtn();
+};
+window.addEventListener("keydown",e=>{ if(e.key==="Escape"&&cutStart!=null){ cutStart=null; updateMarkBtn(); } });
+
+/* ---- tools / zoom ---- */
+function setTool(t){tool=t;$("#toolSelect").classList.toggle("active",t==="select");$("#toolCut").classList.toggle("active",t==="cut");}
+$("#toolSelect").onclick=()=>setTool("select"); $("#toolCut").onclick=()=>setTool("cut"); setTool("select");
+$("#zoomIn").onclick=()=>{pps=Math.min(80,pps*1.4);layout();renderAll();};
+$("#zoomOut").onclick=()=>{pps=Math.max(2,pps/1.4);layout();renderAll();};
+
+/* ---- add overlays ---- */
+$("#addText").onclick=()=>{
+  if(!S)return;
+  const t=clampT(vid.currentTime);
+  S.overlays.push({type:"text",id:"t"+(uid++),text:"Text",x:760,y:480,size:64,color:"#ffffff",start:t,end:Math.min(S.duration,t+3)});
+  selId=S.overlays[S.overlays.length-1].id; renderAll();
+};
+$("#addImage").onclick=()=>{ if(S) $("#imgFile").click(); };
+$("#imgFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const url=URL.createObjectURL(f); const im=new Image();
+  im.onload=()=>{
+    const t=clampT(vid.currentTime); const w=480, ratio=im.naturalHeight/im.naturalWidth;
+    S.overlays.push({type:"image",id:"i"+(uid++),file:f,url,ratio,x:720,y:300,w,start:t,end:Math.min(S.duration,t+5)});
+    selId=S.overlays[S.overlays.length-1].id; renderAll();
+  };
+  im.src=url; e.target.value="";
+};
+const clampT=t=>Math.max(0,Math.min(S.duration-0.1,t));
+
+/* ---- layout sizing ---- */
+function layout(){ tlinner.style.width=(S.duration*pps)+"px"; }
+const x2t=x=>x/pps, t2x=t=>t*pps;
+
+/* ---- render everything ---- */
+function renderAll(){ renderRuler(); renderTrim(); renderCuts(); renderRepeats(); renderClips(); renderStage(); movePlayhead(); renderInspector(); if(window.updateMarkBtn)updateMarkBtn(); }
+
+function renderRuler(){
+  const r=$("#ruler"); r.innerHTML="";
+  let step=1; const targets=[1,2,5,10,15,30,60,120,300];
+  for(const s of targets){ if(s*pps>=60){step=s;break;} step=s; }
+  for(let t=0;t<=S.duration;t+=step){
+    const d=document.createElement("div"); d.className="tick"; d.style.left=t2x(t)+"px"; d.textContent=fmt(t).replace(/\.0$/,""); r.appendChild(d);
+  }
+}
+function renderTrim(){
+  $("#trimL").style.left=t2x(S.trim.start)+"px";
+  $("#trimR").style.left=(t2x(S.trim.end)-9)+"px";
+  $("#dimL").style.left="0px"; $("#dimL").style.width=t2x(S.trim.start)+"px";
+  $("#dimR").style.left=t2x(S.trim.end)+"px"; $("#dimR").style.right="0px"; $("#dimR").style.width="auto";
+  $("#dimR").style.left=t2x(S.trim.end)+"px";
+}
+function renderCuts(){
+  const c=$("#cuts"); c.innerHTML="";
+  S.cuts.forEach((cut,i)=>{
+    const d=document.createElement("div"); d.className="cutreg";
+    d.style.left=t2x(cut.start)+"px"; d.style.width=t2x(cut.end-cut.start)+"px";
+    const x=document.createElement("b"); x.textContent="×"; x.title="Remove cut";
+    x.onclick=ev=>{ev.stopPropagation();S.cuts.splice(i,1);renderCuts();};
+    d.appendChild(x); c.appendChild(d);
+  });
+  (S.inserts||[]).forEach((o,i)=>{          // where a clip will be spliced in
+    const m=document.createElement("div"); m.className="insmark";
+    m.style.left=t2x(o.at)+"px"; m.dataset.lab="clip ▸";
+    m.title=o.title+" — click to remove";
+    m.onclick=ev=>{ev.stopPropagation();S.inserts.splice(i,1);renderInserts();renderCuts();};
+    c.appendChild(m);
+  });
+}
+function escapeHtml(s){return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function jumpTo(t){ try{vid.currentTime=t;}catch(e){} movePlayhead(); $("#clock").textContent=fmt(t); }
+/* Play just the flagged moment (2s lead-in, stops 1s after) so a whole list
+   can be judged by ear without scrubbing — the cut list is the slow part of
+   the editor's day. */
+let _prevStop=null;
+function previewRepeat(i){
+  const r=(S&&S.repeats)?S.repeats[i]:null; if(!r) return;
+  const from=Math.max(0,r.start-2.0), to=r.end+1.0;
+  if(_prevStop){ vid.removeEventListener("timeupdate",_prevStop); }
+  _prevStop=()=>{ if(vid.currentTime>=to){ vid.pause(); vid.removeEventListener("timeupdate",_prevStop); _prevStop=null; } };
+  try{ vid.currentTime=from; }catch(e){}
+  vid.addEventListener("timeupdate",_prevStop);
+  vid.play();
+}
+function renderRepeats(){
+  const c=$("#repcuts"); c.innerHTML="";
+  (S.repeats||[]).forEach(r=>{
+    const d=document.createElement("div"); d.className="repreg"+(r.approved?" ok":"");
+    d.style.left=t2x(r.start)+"px"; d.style.width=Math.max(3,t2x(r.end-r.start))+"px";
+    d.title=(r.approved?"Will be cut":"Proposed repeat")+" — "+r.type+" ("+Math.round(r.confidence*100)+"%)\n"+r.text;
+    d.onclick=ev=>{ev.stopPropagation(); r.approved=!r.approved; renderRepeats();};
+    c.appendChild(d);
+  });
+  const p=$("#repeatsPanel");
+  if(!S.repeats||!S.repeats.length){ p.hidden=true; p.innerHTML=""; $("#repTitle").hidden=true; return; }
+  p.hidden=false; $("#repTitle").hidden=false;
+  const appr=S.repeats.filter(r=>r.approved).length;
+  let html=`<div class="muted" style="margin-bottom:6px">${S.repeats.length} candidate(s) — <b>${appr}</b> marked to cut</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn ghost sm" data-all>Select all</button>
+      <button class="btn ghost sm" data-none>Clear</button>
+      <button class="btn ghost sm" data-strong title="Tick only the confident ones (70%+)">Select confident</button>
+    </div>`;
+  S.repeats.forEach((r,i)=>{
+    const dur=(r.end-r.start).toFixed(1);
+    html+=`<div class="repitem"><input type="checkbox" data-i="${i}" ${r.approved?"checked":""}>
+      <div class="meta">
+        <div><span class="tag">${escapeHtml(r.type)} · ${Math.round(r.confidence*100)}%</span> · ${fmt(r.start)}–${fmt(r.end)} <span class="muted">(${dur}s)</span></div>
+        <div class="cuttxt">cut: ${escapeHtml(r.text)}</div>
+        ${r.keep_text?`<div class="keeptxt">keep: ${escapeHtml(r.keep_text)}</div>`:""}
+        ${r.reason?`<div class="muted">${escapeHtml(r.reason)}</div>`:""}
+        <div style="display:flex;gap:5px;margin-top:5px">
+          <button class="btn ghost sm" data-play="${i}" title="Play this moment with a 2s lead-in">▶ Preview</button>
+          <button class="btn ghost sm" data-jump="${r.start}">Jump</button>
+        </div>
+      </div></div>`;
+  });
+  p.innerHTML=html;
+  p.querySelectorAll("input[type=checkbox]").forEach(cb=>cb.onchange=()=>{S.repeats[+cb.dataset.i].approved=cb.checked; renderRepeats();});
+  p.querySelectorAll("button[data-jump]").forEach(b=>b.onclick=()=>jumpTo(+b.dataset.jump));
+  const setAll=v=>{S.repeats.forEach(r=>r.approved=v); renderRepeats();};
+  const bAll=p.querySelector("[data-all]"); if(bAll) bAll.onclick=()=>setAll(true);
+  const bNone=p.querySelector("[data-none]"); if(bNone) bNone.onclick=()=>setAll(false);
+  const bStrong=p.querySelector("[data-strong]");
+  if(bStrong) bStrong.onclick=()=>{S.repeats.forEach(r=>r.approved=(r.confidence>=0.7)); renderRepeats();};
+  p.querySelectorAll("button[data-play]").forEach(b=>b.onclick=()=>previewRepeat(+b.dataset.play));
+}
+$("#findRepeats").onclick=async()=>{
+  if(!sourceJob)return;
+  const btn=$("#findRepeats"); const old=btn.textContent; btn.disabled=true; btn.textContent="Analysing…";
+  try{
+    const {id}=await(await fetch(`/api/jobs/${sourceJob}/repeats`,{method:"POST"})).json();
+    while(true){
+      await new Promise(r=>setTimeout(r,2000));
+      const j=await(await fetch(`/api/repeats/${id}`)).json();
+      btn.textContent=(j.message||"…").slice(0,26);
+      if(j.status==="done"){ S.repeats=(j.candidates||[]).map(c=>({...c,approved:false})); renderRepeats(); break; }
+      if(j.status==="error"){ alert("Repeat detection failed: "+(j.error||"")); break; }
+    }
+  }catch(e){ alert("Repeat detection error: "+e); }
+  btn.disabled=false; btn.textContent=old;
+};
+function renderClips(){
+  const lane=$("#lane"); lane.innerHTML="";
+  S.overlays.forEach(o=>{
+    const c=document.createElement("div"); c.className="clip "+(o.type==="image"?"img":"")+(o.id===selId?" sel":"");
+    c.style.left=t2x(o.start)+"px"; c.style.width=Math.max(24,t2x(o.end-o.start))+"px";
+    c.textContent=o.type==="text"?("T · "+o.text):("IMG · "+(o.file?o.file.name:"image"));
+    const el=document.createElement("div"),er=document.createElement("div");
+    el.className="e l"; er.className="e r"; c.appendChild(el); c.appendChild(er);
+    c.onpointerdown=ev=>{ if(ev.target===el||ev.target===er)return; selId=o.id; renderAll();
+      dragClip(ev,o,"move"); };
+    el.onpointerdown=ev=>{ev.stopPropagation();selId=o.id;dragClip(ev,o,"l");};
+    er.onpointerdown=ev=>{ev.stopPropagation();selId=o.id;dragClip(ev,o,"r");};
+    lane.appendChild(c);
+  });
+}
+function renderStage(){
+  stage.innerHTML="";
+  const sc=vscale(); const now=vid.currentTime;
+  S.overlays.forEach(o=>{
+    const active=now>=o.start&&now<=o.end;
+    if(!active&&o.id!==selId)return;
+    const b=document.createElement("div"); b.className="obox"+(o.id===selId?" sel":"");
+    b.style.left=(o.x/sc)+"px"; b.style.top=(o.y/sc)+"px";
+    if(o.type==="image"){ b.style.width=(o.w/sc)+"px"; b.style.height=(o.w*o.ratio/sc)+"px";
+      const img=document.createElement("img"); img.src=o.url; b.appendChild(img);
+    }else{
+      const span=document.createElement("div"); span.className="lbl"; span.textContent=o.text||" ";
+      span.style.fontSize=(o.size/sc)+"px"; span.style.color=o.color; b.appendChild(span);
+    }
+    const g=document.createElement("div"); g.className="grip"; b.appendChild(g);
+    b.onpointerdown=ev=>{ if(ev.target===g)return; selId=o.id; renderAll(); dragBox(ev,o); };
+    g.onpointerdown=ev=>{ev.stopPropagation();selId=o.id;resizeBox(ev,o);};
+    stage.appendChild(b);
+  });
+}
+function movePlayhead(){ $("#ph").style.left=t2x(vid.currentTime)+"px"; }
+
+function renderInspector(){
+  const ins=$("#insp");
+  const o=S?S.overlays.find(x=>x.id===selId):null;
+  if(!o){ ins.hidden=true; $("#inspTitle").hidden=true; ins.innerHTML=""; return; }
+  ins.hidden=false; $("#inspTitle").hidden=false; ins.innerHTML="";
+  const mk=(lab,el)=>{const f=document.createElement("div");f.className="f";const l=document.createElement("label");l.textContent=lab;f.appendChild(l);f.appendChild(el);return f;};
+  if(o.type==="text"){
+    const ti=document.createElement("input");ti.type="text";ti.value=o.text;
+    ti.oninput=()=>{o.text=ti.value;renderStage();renderClips();}; ins.appendChild(mk("Text",ti));
+    const co=document.createElement("input");co.type="color";co.value=o.color;
+    co.oninput=()=>{o.color=co.value;renderStage();}; ins.appendChild(mk("Colour",co));
+    const sz=document.createElement("input");sz.type="number";sz.value=o.size;
+    sz.oninput=()=>{o.size=+sz.value||40;renderStage();}; ins.appendChild(mk("Size",sz));
+  }else{
+    const w=document.createElement("input");w.type="number";w.value=Math.round(o.w);
+    w.oninput=()=>{o.w=+w.value||100;renderStage();}; ins.appendChild(mk("Width px",w));
+  }
+  const del=document.createElement("button");del.className="btn danger sm";del.textContent="Delete";
+  del.onclick=()=>{S.overlays=S.overlays.filter(x=>x.id!==o.id);selId=null;renderAll();};
+  const wrap=document.createElement("div");wrap.className="f";wrap.appendChild(del);ins.appendChild(wrap);
+}
+
+/* ---- drag helpers ---- */
+function drag(ev,onMove,onUp){
+  ev.preventDefault();
+  const sx=ev.clientX,sy=ev.clientY;
+  const mv=e=>onMove(e.clientX-sx,e.clientY-sy);
+  const up=e=>{window.removeEventListener("pointermove",mv);window.removeEventListener("pointerup",up);if(onUp)onUp();};
+  window.addEventListener("pointermove",mv);window.addEventListener("pointerup",up);
+}
+function dragBox(ev,o){ const sc=vscale(),ox=o.x,oy=o.y;
+  drag(ev,(dx,dy)=>{o.x=Math.max(0,Math.min(1920-20,ox+dx*sc));o.y=Math.max(0,Math.min(1080-20,oy+dy*sc));renderStage();});
+}
+function resizeBox(ev,o){ const sc=vscale();
+  if(o.type==="image"){const ow=o.w;drag(ev,(dx)=>{o.w=Math.max(40,Math.min(1920,ow+dx*sc));renderStage();renderInspector();});}
+  else{const os=o.size;drag(ev,(dx,dy)=>{o.size=Math.max(12,Math.min(400,os+dy*sc));renderStage();renderInspector();});}
+}
+function dragClip(ev,o,mode){ const st=o.start,en=o.end,dur=en-st;
+  drag(ev,(dx)=>{const dt=x2t(dx);
+    if(mode==="move"){let s=Math.max(0,Math.min(S.duration-dur,st+dt));o.start=s;o.end=s+dur;}
+    else if(mode==="l"){o.start=Math.max(0,Math.min(o.end-0.2,st+dt));}
+    else{o.end=Math.min(S.duration,Math.max(o.start+0.2,en+dt));}
+    renderClips();},()=>renderStage());
+}
+
+/* ---- track interactions ---- */
+function trackTime(clientX){const r=$("#vtrack").getBoundingClientRect();return Math.max(0,Math.min(S.duration,x2t(clientX-r.left)));}
+$("#trimL").onpointerdown=ev=>{ev.stopPropagation();const s0=S.trim.start;drag(ev,dx=>{S.trim.start=Math.max(0,Math.min(S.trim.end-0.5,s0+x2t(dx)));renderTrim();});};
+$("#trimR").onpointerdown=ev=>{ev.stopPropagation();const e0=S.trim.end;drag(ev,dx=>{S.trim.end=Math.min(S.duration,Math.max(S.trim.start+0.5,e0+x2t(dx)));renderTrim();});};
+
+let scrubbing=false;
+function tlTime(clientX){
+  const dur=(S&&S.duration)||vid.duration||0;
+  const r=$("#vtrack").getBoundingClientRect();
+  return Math.max(0, Math.min(dur, (clientX-r.left)/pps));
+}
+function scrubTo(clientX){
+  const t=tlTime(clientX);
+  try{ vid.currentTime=t; }catch(e){}
+  $("#ph").style.left=(t*pps)+"px";
+  $("#clock").textContent=fmt(t);
+}
+function beginScrub(ev){
+  ev.preventDefault(); ev.stopPropagation();
+  scrubbing=true; const wasPlaying=!vid.paused; vid.pause();
+  scrubTo(ev.clientX);
+  const mv=e=>{e.preventDefault();scrubTo(e.clientX);};
+  const up=()=>{scrubbing=false;
+    window.removeEventListener("pointermove",mv,true);
+    window.removeEventListener("pointerup",up,true);
+    if(wasPlaying)vid.play();};
+  window.addEventListener("pointermove",mv,true);
+  window.addEventListener("pointerup",up,true);
+}
+$("#vtrack").onpointerdown=ev=>{
+  if(ev.target.classList.contains("handle")||ev.target.closest(".cutreg")||ev.target.id==="phGrab")return;
+  if(tool==="cut"){
+    const t0=tlTime(ev.clientX); const reg=document.createElement("div"); reg.className="cutreg"; $("#cuts").appendChild(reg);
+    drag(ev,dx=>{const tc=tlTime(ev.clientX+dx);const a=Math.min(t0,tc),b=Math.max(t0,tc);reg.style.left=t2x(a)+"px";reg.style.width=t2x(b-a)+"px";reg._a=a;reg._b=b;},
+      ()=>{const a=reg._a??t0,b=reg._b??t0;reg.remove();if(b-a>0.2){S.cuts.push({start:a,end:b});renderCuts();}});
+  }else{
+    beginScrub(ev);
+  }
+};
+$("#ruler").onpointerdown=beginScrub;
+$("#phGrab").onpointerdown=beginScrub;
+vid.addEventListener("timeupdate",()=>{ if(scrubbing){ $("#ph").style.left=t2x(vid.currentTime)+"px"; } });
+window.addEventListener("resize",()=>{if(S)renderStage();});
+
+$("#insertClip").onclick=openInsert;
+
+/* ---- APPLY ---- */
+$("#apply").onclick=async()=>{
+  if(!S||!sourceJob)return;
+  $("#apply").disabled=true;$("#editPanel").hidden=false;$("#editResult").innerHTML="";
+  const texts=S.overlays.filter(o=>o.type==="text").map(o=>({text:o.text,start:+o.start.toFixed(2),end:+o.end.toFixed(2),x:Math.round(o.x),y:Math.round(o.y),size:Math.round(o.size),color:o.color}));
+  const images=S.overlays.filter(o=>o.type==="image");
+  const repCuts=(S.repeats||[]).filter(r=>r.approved);
+  const spec={trim:{start:+S.trim.start.toFixed(2),end:S.trim.end>=S.duration-0.05?null:+S.trim.end.toFixed(2)},
+    cuts:[...S.cuts,...repCuts].map(c=>({start:+c.start.toFixed(2),end:+c.end.toFixed(2)})),
+    mute_original:false, texts,
+    repeat_feedback:(S.repeats||[]).map(r=>({text:r.text,type:r.type,confidence:r.confidence,approved:!!r.approved})),
+    manual_cuts:(S.cuts||[]).map(c=>({start:+c.start.toFixed(2),end:+c.end.toFixed(2)})),
+    inserts:(S.inserts||[]).map(o=>({job:o.job,at:o.at})),
+    images:images.map(o=>({id:o.id,start:+o.start.toFixed(2),end:+o.end.toFixed(2),x:Math.round(o.x),y:Math.round(o.y),w:Math.round(o.w)})) };
+  const fd=new FormData();fd.append("spec",JSON.stringify(spec));
+  images.forEach(o=>fd.append(o.id,o.file));
+  const{id}=await(await fetch(`/api/jobs/${sourceJob}/edit`,{method:"POST",body:fd})).json();
+  // Show the new edit task in the queue at once instead of waiting for the
+  // next list sweep, and re-poll the source row so it flips to "superseded"
+  // straight away (it had already finished, so nothing was polling it).
+  addJobRow(id, "(edited)");
+  const srcRow=document.querySelector(`[data-job="${sourceJob}"]`);
+  if(srcRow){ delete srcRow.dataset.sig; pollRow(sourceJob, srcRow); }
+  pollJob(id,"e",j=>{
+    $("#apply").disabled=false;
+    const up = j.drive ? `<button class="btn ghost sm" id="editUpload" style="margin-left:6px">Upload to Drive</button>` : "";
+    $("#editResult").innerHTML=`<video controls style="width:100%;border-radius:8px" src="${j.download}"></video>
+      <div style="margin-top:8px;display:flex;align-items:center;flex-wrap:wrap;gap:6px"><a class="dl" href="${j.download}">Download</a>
+      <button class="btn ghost sm" id="reedit">Edit this result</button>${up}</div>
+      <div id="editUpMsg" class="muted" style="margin-top:6px"></div>`;
+    $("#reedit").onclick=()=>openEditor(id);
+    if(j.drive){ $("#editUpload").onclick=e=>uploadToDrive(id,e.target,{querySelector:()=>$("#editUpMsg")}); }
+  });
+};
+</script>
+</body>
+</html>

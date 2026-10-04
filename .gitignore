@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Large media — raw inputs, references, renders (not for the repo)
+/samples/
+/output/
+/*.mp4
+/*.mov
+/*.zip
+/*.docx
+
+# Branded pipeline assets (intro, outro, robot, backgrounds, Premiere presets)
+# are the client's and are deliberately NOT in this repository. They stay on
+# disk so the pipeline runs locally; config.py expects them under these names.
+/assets/
+
+# secrets (API keys) — never commit
+.env
+
+# service account key — never commit
+service_account.json
+token.json
+client_secret.json
+
+# the web panel's access key — it is the password to the editor
+.access_key
+
+# vendored static binaries (ffmpeg/ffprobe/cloudflared, ~133MB) — these are
+# downloaded per machine, see README; far too big for the repo
+/.bin/
+
+# local job data, if anyone points the data dir inside the checkout
+/boost_jobs/

@@ -1,0 +1,10 @@
+opencv-python>=4.8
+numpy>=1.24
+fastapi>=0.110
+uvicorn>=0.27
+python-multipart>=0.0.9
+# ffmpeg + ffprobe must be on PATH (https://ffmpeg.org/)
+silero-vad>=5.1        # VAD-based silence/speech detection (content cleanup)
+onnxruntime>=1.17      # Silero VAD runtime (no torch needed)
+faster-whisper>=1.0     # word-level transcription for repeat detection (stage 3)
+gdown>=5.2            # download source videos from Google Drive links
